@@ -50,6 +50,7 @@ export function RidesTable({
           <thead className="bg-gray-50 sticky top-0 border-b">
             <tr>
               <th className="p-2 text-right">קו</th>
+              <th className="p-2 text-right">יציאה</th>
               <th className="p-2 text-right">הגעה</th>
               <th className="p-2 text-right">רכב</th>
               <th className="p-2 text-right">הפרש</th>
@@ -77,6 +78,12 @@ export function RidesTable({
                 >
                   <td className="p-2 font-bold" style={{ color: rideStop.lineInfo.color }}>
                     {rideStop.lineInfo.routeShortName}
+                  </td>
+                  <td className="p-2 text-gray-700">
+                    {rideStop.scheduledStart.toLocaleTimeString('he-IL', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </td>
                   <td className="p-2 font-semibold">
                     {rideStop.actualArrival.toLocaleTimeString('he-IL', {
