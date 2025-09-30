@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* (לא חובה, אבל כדאי) טיפוגרפיה גלובלית */
+@layer base {
+  :root { font-family: var(--font-sans); }
+}
