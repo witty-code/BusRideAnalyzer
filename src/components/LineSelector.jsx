@@ -13,14 +13,18 @@ export function LineSelector({
   onAddLine
 }) {
   const availableDirections = currentLineSetup.directionsData.map(route => {
-    const parsed = parseRouteName(route.route_long_name);
-    return {
-      line_ref: route.line_ref,
-      direction: route.route_direction,
-      label: parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${route.route_direction}`,
-      fullData: route
-    };
-  });
+  const parsed = parseRouteName(route.route_long_name);
+  const baseLabel = parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${route.route_direction}`;
+  const alternativeLabel = route.route_alternative !== '0' && route.route_alternative !== 0 
+    ? ` (חלופה ${route.route_alternative})` 
+    : '';
+  return {
+    line_ref: route.line_ref,
+    direction: route.route_direction,
+    label: baseLabel + alternativeLabel,
+    fullData: route
+  };
+});
 
   return (
     <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-3">
@@ -80,25 +84,32 @@ export function LineSelector({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">מסלול</label>
-            <select
-              value={currentLineSetup.selectedRouteMkt}
-              onChange={(e) => {
-                setCurrentLineSetup(prev => ({
-                  ...prev,
-                  selectedRouteMkt: e.target.value,
-                  selectedDirection: ''
-                }));
-                onLoadDirections(e.target.value);
-              }}
-              className="w-full border rounded px-2 py-1 text-sm"
-            >
-              <option value="">בחר מסלול</option>
-              {currentLineSetup.availableRoutes.map(r => (
-                <option key={r.route_mkt} value={r.route_mkt}>
-                  קו {r.route_short_name} - {r.destination}
-                </option>
-              ))}
-            </select>
+            {/* אם יש רק קו אחד - נסתיר את שדה הבחירה */}
+            {currentLineSetup.availableRoutes.length === 1 ? (
+              <div className="w-full border rounded px-2 py-1 text-sm bg-gray-50">
+                קו {currentLineSetup.availableRoutes[0].route_short_name} - {currentLineSetup.availableRoutes[0].destination}
+              </div>
+            ) : (
+              <select
+                value={currentLineSetup.selectedRouteMkt}
+                onChange={(e) => {
+                  setCurrentLineSetup(prev => ({
+                    ...prev,
+                    selectedRouteMkt: e.target.value,
+                    selectedDirection: ''
+                  }));
+                  onLoadDirections(e.target.value);
+                }}
+                className="w-full border rounded px-2 py-1 text-sm"
+              >
+                <option value="">בחר מסלול</option>
+                {currentLineSetup.availableRoutes.map(r => (
+                  <option key={r.route_mkt} value={r.route_mkt}>
+                    קו {r.route_short_name} - {r.destination}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {availableDirections.length > 0 && (

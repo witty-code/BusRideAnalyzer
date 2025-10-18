@@ -53,7 +53,9 @@ export function RidesTable({
               <th className="p-2 text-right">יציאה</th>
               <th className="p-2 text-right">הגעה</th>
               <th className="p-2 text-right">רכב</th>
+              <th className="p-2 text-right">מרחק (מ')</th>
               <th className="p-2 text-right">הפרש</th>
+
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -68,7 +70,8 @@ export function RidesTable({
                   key={`${rideStop.ride.id}-${idx}`}
                   onClick={() => onRideClick(rideStop)}
                   className={`cursor-pointer hover:bg-blue-50 transition ${
-                    selectedRide?.id === rideStop.ride.id ? 'bg-blue-100' : ''
+                    selectedRide?.id === rideStop.ride.id ? 'bg-blue-100' : 
+                    !rideStop.reachedStop ? 'bg-gray-200' : ''
                   }`}
                   style={{ 
                     borderRightWidth: '3px',
@@ -93,6 +96,12 @@ export function RidesTable({
                     })}
                   </td>
                   <td className="p-2 text-gray-600">{rideStop.ride.vehicle_ref}</td>
+                  <td className="p-2 text-gray-600 flex items-center gap-1">
+                    {!rideStop.reachedStop && (
+                      <span className="text-red-500 font-bold">⚠</span>
+                    )}
+                    {Math.round(rideStop.distance)}
+                  </td>
                   <td className="p-2 text-gray-500">
                     {formatTimeDiff(timeDiff)}
                   </td>

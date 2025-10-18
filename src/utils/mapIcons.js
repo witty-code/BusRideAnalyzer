@@ -14,3 +14,18 @@ const createIcon = (color) => new L.Icon({
 
 export const selectedStopIcon = createIcon('#22c55e');
 export const gpsIcon = createIcon('#ef4444');
+export const startIcon = createIcon('#22c55e'); // ירוק להתחלה
+export const endIcon = createIcon('#ef4444'); // אדום לסיום
+export const stopIcon = createIcon('#9ca3af'); // אפור לתחנות רגילות
+export const selectedStopIconBlue = createIcon('#3b82f6'); // כחול לתחנה שנבחרה
+
+export const gpsPointIcon = new L.Icon({
+  iconUrl: `data:image/svg+xml;base64,${btoa(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+      <circle fill="#ef4444" cx="8" cy="8" r="5" stroke="white" stroke-width="2"/>
+    </svg>
+  `)}`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8]
+});

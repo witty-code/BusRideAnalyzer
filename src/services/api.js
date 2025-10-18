@@ -39,7 +39,7 @@ export async function fetchStop(stopCode) {
   return data.length > 0 ? data[0] : null;
 }
 
-export async function fetchRidesForLines(selectedLines, stopInfo, startDateTime, endDateTime) {
+export async function fetchRidesForLines(selectedLines, stopInfo, startDateTime, endDateTime, lineStopsData) {
   const allRides = [];
   
   for (const line of selectedLines) {
@@ -84,9 +84,78 @@ export async function fetchRidesForLines(selectedLines, stopInfo, startDateTime,
           lineInfo: line
         });
       }
+
+      const lineStops = lineStopsData[line.id] || [];
+      const targetStop = lineStops.find(s => s.code === stopInfo.code);
+
+      let reachedStop = true;
+      if (targetStop && closestPoint.distance_from_journey_start !== null) {
+        const distanceToStop = targetStop.shape_dist_traveled;
+        const closestDistance = closestPoint.distance_from_journey_start;
+        
+        const hasPointAfterStop = locations.some(
+          loc => loc.distance_from_journey_start !== null && 
+                loc.distance_from_journey_start > distanceToStop
+        );
+        
+        if (closestDistance < (distanceToStop - 250) && !hasPointAfterStop) {
+          reachedStop = false;
+        }
+      }
+
+      allRides.push({
+        ride,
+        closestPoint,
+        distance: minDistance,
+        allLocations: locations,
+        scheduledStart: new Date(ride.scheduled_start_time),
+        actualArrival: new Date(closestPoint.recorded_at_time),
+        lineInfo: line,
+        reachedStop: reachedStop
+      });
     }
   }
 
   allRides.sort((a, b) => a.actualArrival - b.actualArrival);
   return allRides;
+}
+
+
+export async function fetchStopsForLine(operator, routeMkt, direction, dateFrom, dateTo) {
+  // שלב 1: מצא gtfs_route_id
+  const routesRes = await fetch(
+    `${API_BASE}/gtfs_routes/list?operator_refs=${operator}&route_mkt=${routeMkt}&route_direction=${direction}&date_from=${dateFrom}&date_to=${dateTo}&limit=1`
+  );
+  const routes = await routesRes.json();
+  
+  if (routes.length === 0) return [];
+  
+  const gtfsRouteId = routes[0].id;
+  
+  // שלב 2: מצא gtfs_ride_id לדוגמה
+  const ridesRes = await fetch(
+    `${API_BASE}/gtfs_rides/list?gtfs_route_id=${gtfsRouteId}&limit=1`
+  );
+  const rides = await ridesRes.json();
+  
+  if (rides.length === 0) return [];
+  
+  const gtfsRideId = rides[0].id;
+  
+  // שלב 3: שלוף את כל התחנות
+  const stopsRes = await fetch(
+    `${API_BASE}/gtfs_ride_stops/list?gtfs_ride_ids=${gtfsRideId}`
+  );
+  const stops = await stopsRes.json();
+  
+  // החזר רק את המידע הרלוונטי
+  return stops.map(stop => ({
+    code: stop.gtfs_stop__code,
+    name: stop.gtfs_stop__name,
+    city: stop.gtfs_stop__city,
+    lat: stop.gtfs_stop__lat,
+    lon: stop.gtfs_stop__lon,
+    shape_dist_traveled: stop.shape_dist_traveled,
+    stop_sequence: stop.stop_sequence
+  }));
 }

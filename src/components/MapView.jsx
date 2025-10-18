@@ -2,7 +2,7 @@
 import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import { MapUpdater } from './MapUpdater';
-import { selectedStopIcon, gpsIcon } from '../utils/mapIcons';
+import { selectedStopIcon, gpsIcon, startIcon, endIcon, gpsPointIcon, stopIcon, selectedStopIconBlue } from '../utils/mapIcons';
 
 export function MapView({ 
   mapCenter, 
@@ -11,7 +11,8 @@ export function MapView({
   vehicleLocations, 
   loading, 
   selectedRide,
-  selectedLines 
+  selectedLines,
+  lineStopsData
 }) {
   return (
     <div className="flex-1 relative">
@@ -19,6 +20,39 @@ export function MapView({
         <MapUpdater center={mapCenter} zoom={mapZoom} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
         
+        {/* רכיב להצגת תחנות */}
+        {selectedRide && lineStopsData[selectedRide.lineInfo?.id] && (
+          <>
+            {lineStopsData[selectedRide.lineInfo.id].map((stop) => {
+              const isSelectedStop = stop.code === stopInfo?.code;
+              const icon = isSelectedStop ? selectedStopIconBlue : stopIcon;
+              const zIndex = isSelectedStop ? 500 : 100;
+              
+              return (
+                <Marker 
+                  key={`stop-${stop.code}`} 
+                  position={[stop.lat, stop.lon]} 
+                  icon={icon}
+                  zIndexOffset={zIndex}
+                >
+                  <Popup>
+                    <div className="text-xs">
+                      <div className="font-bold">{stop.name}</div>
+                      <div>קוד: {stop.code}</div>
+                      <div>עיר: {stop.city}</div>
+                      {stop.shape_dist_traveled !== null && (
+                        <div className="text-blue-600 font-semibold">
+                          מרחק: {Math.round(stop.shape_dist_traveled)}מ'
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </>
+        )}
+
         {stopInfo && (
           <Marker position={[stopInfo.lat, stopInfo.lon]} icon={selectedStopIcon}>
             <Popup>
@@ -32,25 +66,42 @@ export function MapView({
         )}
 
         {vehicleLocations.length > 0 && (
-          <>
-            <Polyline
-              positions={vehicleLocations.map(loc => [loc.lat, loc.lon])}
-              color="#ef4444"
-              weight={3}
-              opacity={0.7}
-            />
-            {vehicleLocations.map((loc) => (
-              <Marker key={loc.id} position={[loc.lat, loc.lon]} icon={gpsIcon}>
-                <Popup>
-                  <div className="text-xs">
-                    <div>{new Date(loc.recorded_at_time).toLocaleTimeString('he-IL')}</div>
-                    <div>מהירות: {loc.velocity} קמ"ש</div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </>
-        )}
+  <>
+    <Polyline
+      positions={vehicleLocations.map(loc => [loc.lat, loc.lon])}
+      color="#ef4444"
+      weight={3}
+      opacity={0.7}
+    />
+    {vehicleLocations.map((loc, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === vehicleLocations.length - 1;
+      
+      let icon = gpsPointIcon;
+      let label = '';
+      
+      if (isFirst) {
+        icon = startIcon;
+        label = 'התחלה';
+      } else if (isLast) {
+        icon = endIcon;
+        label = 'סוף';
+      }
+      
+      return (
+        <Marker key={loc.id} position={[loc.lat, loc.lon]} icon={icon} zIndexOffset={isFirst || isLast ? 1000 : 0}>
+          <Popup>
+            <div className="text-xs">
+              {label && <div className="font-bold">{label}</div>}
+              <div>{new Date(loc.recorded_at_time).toLocaleTimeString('he-IL')}</div>
+              <div>מהירות: {loc.velocity} קמ"ש</div>
+            </div>
+          </Popup>
+        </Marker>
+      );
+    })}
+  </>
+)}
       </MapContainer>
 
       {loading && (

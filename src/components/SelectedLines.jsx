@@ -1,7 +1,7 @@
 // === components/SelectedLines.jsx ===
 import React from 'react';
 
-export function SelectedLines({ selectedLines, onRemoveLine, onCalculate, loading, stopInfo }) {
+export function SelectedLines({ selectedLines, onRemoveLine, onCalculate, onClearResults, loading, stopInfo }) {
   if (selectedLines.length === 0) return null;
 
   return (
@@ -37,6 +37,12 @@ export function SelectedLines({ selectedLines, onRemoveLine, onCalculate, loadin
         className="w-full mt-3 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 text-sm font-bold"
       >
         חשב תדירות מצרפית
+      </button>
+      <button
+        onClick={onClearResults}
+        className="w-full mt-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm font-medium"
+      >
+        נקה תוצאות
       </button>
     </div>
   );

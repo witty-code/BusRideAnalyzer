@@ -23,8 +23,8 @@ L.Icon.Default.mergeOptions({
 
 export default function BusRideAnalyzer() {
   const [agencies, setAgencies] = useState([]);
-  const [dateFrom, setDateFrom] = useState('2025-05-18');
-  const [dateTo, setDateTo] = useState('2025-05-18');
+  const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [timeFrom, setTimeFrom] = useState('00:00');
   const [timeTo, setTimeTo] = useState('23:59');
   const [stopCode, setStopCode] = useState('');
@@ -40,6 +40,7 @@ export default function BusRideAnalyzer() {
   });
   const [allRidesWithStops, setAllRidesWithStops] = useState([]);
   const [selectedRide, setSelectedRide] = useState(null);
+  const [lineStopsData, setLineStopsData] = useState({});
   const [vehicleLocations, setVehicleLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState([32.0853, 34.7818]);
@@ -88,10 +89,25 @@ export default function BusRideAnalyzer() {
       setCurrentLineSetup(prev => ({
         ...prev,
         availableRoutes: routes,
-        selectedRouteMkt: '',
+        selectedRouteMkt: routes.length === 1 ? routes[0].route_mkt : '',
         directionsData: [],
         selectedDirection: ''
       }));
+
+      // אם יש רק תוצאה אחת, טען את הכיוונים אוטומטית
+      if (routes.length === 1) {
+        const directions = await api.fetchDirections(
+          currentLineSetup.operator,
+          routes[0].route_mkt,
+          dateFrom,
+          dateTo
+        );
+        setCurrentLineSetup(prev => ({
+          ...prev,
+          directionsData: directions,
+          selectedDirection: ''
+        }));
+      }
     } catch (err) {
       console.error('Failed to load routes:', err);
     } finally {
@@ -121,43 +137,61 @@ export default function BusRideAnalyzer() {
     }
   };
 
-  const handleAddLine = () => {
-    if (!currentLineSetup.selectedRouteMkt || !currentLineSetup.selectedDirection) {
-      alert('נא לבחור מסלול וכיוון');
-      return;
-    }
-    
-    if (selectedLines.length >= 5) {
-      alert('ניתן לבחור עד 5 קווים');
-      return;
-    }
+  
+const handleAddLine = async () => {
+  if (!currentLineSetup.selectedRouteMkt || !currentLineSetup.selectedDirection) {
+    alert('נא לבחור מסלול וכיוון');
+    return;
+  }
+  
+  if (selectedLines.length >= 5) {
+    alert('ניתן לבחור עד 5 קווים');
+    return;
+  }
 
-    const selectedRouteData = currentLineSetup.directionsData.find(
-      r => r.route_direction === currentLineSetup.selectedDirection
+  const selectedRouteData = currentLineSetup.directionsData.find(
+    r => r.route_direction === currentLineSetup.selectedDirection
+  );
+  
+  const agencyName = agencies.find(a => a.operator_ref === selectedRouteData.operator_ref)?.agency_name || selectedRouteData.operator;
+  const routeInfo = currentLineSetup.availableRoutes.find(r => r.route_mkt === currentLineSetup.selectedRouteMkt);
+  
+  const parsed = parseRouteName(selectedRouteData.route_long_name);
+  const directionLabel = parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${currentLineSetup.selectedDirection}`;
+  
+  const newLine = {
+    id: `${agencyName}-${currentLineSetup.selectedRouteMkt}-${currentLineSetup.selectedDirection}`,
+    operator: currentLineSetup.operator,
+    operatorName: agencyName,
+    routeShortName: routeInfo.route_short_name,
+    routeMkt: currentLineSetup.selectedRouteMkt,
+    direction: currentLineSetup.selectedDirection,
+    directionLabel: directionLabel,
+    directionsData: currentLineSetup.directionsData,
+    color: LINE_COLORS[selectedLines.length]
+  };
+  
+  // שליפת תחנות לקו החדש לפני הוספת הקו
+  setLoading(true);
+  try {
+    const stops = await api.fetchStopsForLine(
+      selectedRouteData.operator_ref,
+      currentLineSetup.selectedRouteMkt,
+      currentLineSetup.selectedDirection,
+      dateFrom,
+      dateTo
     );
     
-    console.log('Selected Route Data:', selectedRouteData, 'agencies:', agencies, currentLineSetup);
-    // find agency name where agency.operator_ref === currentLineSetup.operator
-    const agencyName = agencies.find(a => a.operator_ref === selectedRouteData.operator_ref)?.agency_name || selectedRouteData.operator;
-    const routeInfo = currentLineSetup.availableRoutes.find(r => r.route_mkt === currentLineSetup.selectedRouteMkt);
+    // עדכן את lineStopsData
+    setLineStopsData(prev => ({
+      ...prev,
+      [newLine.id]: stops
+    }));
     
-    const parsed = parseRouteName(selectedRouteData.route_long_name);
-    const directionLabel = parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${currentLineSetup.selectedDirection}`;
-    
-    const newLine = {
-      id: `${agencyName}-${currentLineSetup.selectedRouteMkt}-${currentLineSetup.selectedDirection}`,
-      operator: currentLineSetup.operator,
-      operatorName: agencyName,
-      routeShortName: routeInfo.route_short_name,
-      routeMkt: currentLineSetup.selectedRouteMkt,
-      direction: currentLineSetup.selectedDirection,
-      directionLabel: directionLabel,
-      directionsData: currentLineSetup.directionsData,
-      color: LINE_COLORS[selectedLines.length]
-    };
-    
+    // רק אחרי שהתחנות נשלפו בהצלחה - הוסף את הקו
     setSelectedLines(prev => [...prev, newLine]);
     
+    // נקה את הטופס
     setCurrentLineSetup({
       operator: '',
       routeShortName: '',
@@ -166,7 +200,14 @@ export default function BusRideAnalyzer() {
       directionsData: [],
       selectedDirection: ''
     });
-  };
+    
+  } catch (err) {
+    console.error('Failed to load stops for line:', err);
+    alert('שגיאה בטעינת תחנות הקו');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleRemoveLine = (lineId) => {
     setSelectedLines(prev => prev.filter(line => line.id !== lineId));
@@ -188,7 +229,7 @@ export default function BusRideAnalyzer() {
       const startDateTime = new Date(`${dateFrom}T${timeFrom}:00`).getTime();
       const endDateTime = new Date(`${dateTo}T${timeTo}:59`).getTime();
       
-      const rides = await api.fetchRidesForLines(selectedLines, stopInfo, startDateTime, endDateTime);
+      const rides = await api.fetchRidesForLines(selectedLines, stopInfo, startDateTime, endDateTime, lineStopsData);
       setAllRidesWithStops(rides);
     } catch (err) {
       console.error('Failed to load rides:', err);
@@ -205,6 +246,12 @@ export default function BusRideAnalyzer() {
       setMapCenter([rideWithStop.closestPoint.lat, rideWithStop.closestPoint.lon]);
       setMapZoom(14);
     }
+  };
+
+  const handleClearResults = () => {
+    setAllRidesWithStops([]);
+    setSelectedRide(null);
+    setVehicleLocations([]);
   };
 
   const frequency = calculateFrequency(allRidesWithStops);
@@ -249,6 +296,7 @@ export default function BusRideAnalyzer() {
           selectedLines={selectedLines}
           onRemoveLine={handleRemoveLine}
           onCalculate={handleCalculateFrequency}
+          onClearResults={handleClearResults}
           loading={loading}
           stopInfo={stopInfo}
         />
@@ -284,6 +332,7 @@ export default function BusRideAnalyzer() {
           loading={loading}
           selectedRide={selectedRide}
           selectedLines={selectedLines}
+          lineStopsData={lineStopsData}
         />
       </div>
     </div>
