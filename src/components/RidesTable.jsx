@@ -17,6 +17,7 @@ function formatTimeDiff(minutes) {
   }
 }
 
+
 export function RidesTable({ 
   ridesWithStops, 
   selectedRide, 
@@ -52,27 +53,46 @@ export function RidesTable({
               <th className="p-2 text-right">קו</th>
               <th className="p-2 text-right">יציאה</th>
               <th className="p-2 text-right">הגעה</th>
+              <th className="p-2 text-right">זמן נסיעה</th>
               <th className="p-2 text-right">רכב</th>
               <th className="p-2 text-right">מרחק (מ')</th>
               <th className="p-2 text-right">הפרש</th>
-
             </tr>
           </thead>
           <tbody className="divide-y">
             {ridesWithStops.map((rideStop, idx) => {
+              // מצא את הנסיעה התקינה האחרונה לפני השורה הזו
+              let lastValidRideIndex = -1;
+              for (let i = idx - 1; i >= 0; i--) {
+                if (ridesWithStops[i].reachedStop) {
+                  lastValidRideIndex = i;
+                  break;
+                }
+              }
+              
+              // חישוב הפרש זמן
               let timeDiff = null;
-              if (idx > 0) {
-                timeDiff = (rideStop.actualArrival - ridesWithStops[idx-1].actualArrival) / 1000 / 60;
+              if (rideStop.reachedStop && lastValidRideIndex >= 0) {
+                timeDiff = (rideStop.actualArrival - ridesWithStops[lastValidRideIndex].actualArrival) / 1000 / 60;
+              }
+
+              // קביעת צבע רקע
+              let bgClass = '';
+              if (selectedRide?.ride?.id === rideStop.ride.id) {
+                bgClass = 'bg-blue-100';
+              } else if (rideStop.wasCancelled) {
+                bgClass = 'bg-orange-100'; // צבע שונה לנסיעות מבוטלות
+              } else if (rideStop.didNotLeaveTerminal) {
+                bgClass = 'bg-red-100';
+              } else if (!rideStop.reachedStop) {
+                bgClass = 'bg-gray-200';
               }
 
               return (
                 <tr
                   key={`${rideStop.ride.id}-${idx}`}
-                  onClick={() => onRideClick(rideStop)}
-                  className={`cursor-pointer hover:bg-blue-50 transition ${
-                    selectedRide?.id === rideStop.ride.id ? 'bg-blue-100' : 
-                    !rideStop.reachedStop ? 'bg-gray-200' : ''
-                  }`}
+                  onClick={() => !rideStop.wasCancelled && onRideClick(rideStop)} // לא ניתן ללחוץ על נסיעות מבוטלות
+                  className={`${rideStop.wasCancelled ? '' : 'cursor-pointer hover:bg-blue-50'} transition ${bgClass}`}
                   style={{ 
                     borderRightWidth: '3px',
                     borderRightColor: rideStop.lineInfo.color,
@@ -89,21 +109,48 @@ export function RidesTable({
                     })}
                   </td>
                   <td className="p-2 font-semibold">
-                    {rideStop.actualArrival.toLocaleTimeString('he-IL', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit'
-                    })}
-                  </td>
-                  <td className="p-2 text-gray-600">{rideStop.ride.vehicle_ref}</td>
-                  <td className="p-2 text-gray-600 flex items-center gap-1">
-                    {!rideStop.reachedStop && (
-                      <span className="text-red-500 font-bold">⚠</span>
+                    {rideStop.wasCancelled ? (
+                      <span className="text-orange-600 font-bold text-xs">לא בוצע</span>
+                    ) : rideStop.reachedStop ? (
+                      rideStop.actualArrival.toLocaleTimeString('he-IL', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })
+                    ) : (
+                      <span className="text-gray-400">-</span>
                     )}
-                    {Math.round(rideStop.distance)}
+                  </td>
+                  <td className="p-2 text-gray-700">
+                    {rideStop.travelTimeMinutes !== null && 
+                     rideStop.travelTimeMinutes !== false && 
+                     !isNaN(rideStop.travelTimeMinutes) ? (
+                      <span className={rideStop.wasCancelled ? 'text-orange-500 italic' : ''}>                    
+                        {Math.round(rideStop.travelTimeMinutes).toString()}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className="p-2 text-gray-600">
+                    {rideStop.wasCancelled ? '-' : rideStop.ride.vehicle_ref}
+                  </td>
+                  <td className="p-2 text-gray-600 flex items-center gap-1">
+                    {rideStop.wasCancelled ? (
+                      <span className="text-orange-600 font-bold text-xs">🚫 מבוטל</span>
+                    ) : rideStop.didNotLeaveTerminal ? (
+                      <span className="text-red-600 font-bold text-xs">🚫 לא יצא</span>
+                    ) : !rideStop.reachedStop ? (
+                      <>
+                        <span className="text-red-500 font-bold">⚠</span>
+                        {Math.round(rideStop.distance).toString()}
+                      </>
+                    ) : (
+                      Math.round(rideStop.distance).toString()
+                    )}
                   </td>
                   <td className="p-2 text-gray-500">
-                    {formatTimeDiff(timeDiff)}
+                    {rideStop.reachedStop ? formatTimeDiff(timeDiff) : '-'}
                   </td>
                 </tr>
               );

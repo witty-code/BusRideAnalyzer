@@ -15,7 +15,7 @@ export function MapView({
   lineStopsData
 }) {
   return (
-    <div className="flex-1 relative">
+    <div className="flex-1 relative h-full">
       <MapContainer center={mapCenter} zoom={mapZoom} className="h-full w-full" scrollWheelZoom={true}>
         <MapUpdater center={mapCenter} zoom={mapZoom} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />

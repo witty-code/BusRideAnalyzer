@@ -30,11 +30,14 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 export function calculateFrequency(ridesWithStops) {
-  if (ridesWithStops.length < 2) return null;
+  // סנן רק נסיעות שהגיעו בפועל לתחנה
+  const validRides = ridesWithStops.filter(r => r.reachedStop);
+  
+  if (validRides.length < 2) return null;
 
   const intervals = [];
-  for (let i = 1; i < ridesWithStops.length; i++) {
-    const diffMinutes = (ridesWithStops[i].actualArrival - ridesWithStops[i-1].actualArrival) / 1000 / 60;
+  for (let i = 1; i < validRides.length; i++) {
+    const diffMinutes = (validRides[i].actualArrival - validRides[i-1].actualArrival) / 1000 / 60;
     intervals.push(diffMinutes);
   }
 
@@ -42,5 +45,10 @@ export function calculateFrequency(ridesWithStops) {
   const minInterval = Math.min(...intervals);
   const maxInterval = Math.max(...intervals);
 
-  return { avgInterval, minInterval, maxInterval };
+  return { 
+    avgInterval, 
+    minInterval, 
+    maxInterval,
+    validRidesCount: validRides.length
+  };
 }

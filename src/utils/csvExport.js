@@ -27,9 +27,15 @@ function formatTimeDiffSeconds(totalSeconds) {
 }
 
 
-
-
 export function exportToCSV(allRidesWithStops, selectedLines, stopInfo, dateFrom, timeFrom, timeTo) {
+  // סנן רק נסיעות תקינות
+  const validRides = allRidesWithStops.filter(ride => ride.reachedStop && !ride.wasCancelled);
+  
+  if (validRides.length === 0) {
+    alert('אין נסיעות תקינות לייצוא');
+    return;
+  }
+  
   // Create CSV header with BOM for UTF-8
   const BOM = '\uFEFF';
   
@@ -56,23 +62,14 @@ export function exportToCSV(allRidesWithStops, selectedLines, stopInfo, dateFrom
   csv += 'מספר קו,מפעיל,זמן יציאה מתחנת מוצא,זמן הגעה לתחנה,מספר רכב,מרחק מהתחנה (מטרים),הפרש זמן מהגעה קודמת\n';
   
   // sort rides by actual arrival time
-  allRidesWithStops.sort((a, b) => a.actualArrival - b.actualArrival);
+  validRides.sort((a, b) => a.actualArrival - b.actualArrival);
 
-  allRidesWithStops.forEach((rideStop, idx) => {
+  validRides.forEach((rideStop, idx) => {
     let timeDiff = '';
     if (idx > 0) {
-      const diffSeconds = (rideStop.actualArrival - allRidesWithStops[idx-1].actualArrival) / 1000;
-      timeDiff = formatTimeDiff(diffSeconds);
-      // const diffMinutes = (rideStop.actualArrival - allRidesWithStops[idx-1].actualArrival) / 1000 / 60;
+      const diffSeconds = (rideStop.actualArrival - validRides[idx-1].actualArrival) / 1000;
       timeDiff = formatTimeDiffSeconds(diffSeconds);
     }
-
-    // console.log(
-    //     "prev:", allRidesWithStops[idx-1]?.actualArrival,
-    //     "curr:", rideStop.actualArrival,
-    //     "diff:", rideStop.actualArrival - allRidesWithStops[idx-1]?.actualArrival
-    // );
-
     
     const scheduledTime = rideStop.scheduledStart.toLocaleTimeString('he-IL', {
       hour: '2-digit',

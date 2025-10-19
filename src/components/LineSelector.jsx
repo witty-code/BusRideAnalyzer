@@ -28,9 +28,9 @@ export function LineSelector({
 
   return (
     <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-3">
-      <h3 className="font-bold text-purple-800 mb-2">שלב 3: הוספת קווים ({selectedLines.length}/5)</h3>
+      <h3 className="font-bold text-purple-800 mb-2">שלב 3: הוספת קווים ({selectedLines.length}/7)</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <div>
           <label className="block text-sm font-medium mb-1">מפעיל</label>
           <select
@@ -137,7 +137,7 @@ export function LineSelector({
             <div className="flex items-end">
               <button
                 onClick={onAddLine}
-                disabled={selectedLines.length >= 5}
+                disabled={selectedLines.length >= 7}
                 className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-300 text-sm font-medium"
               >
                 + הוסף קו

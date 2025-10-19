@@ -5,7 +5,7 @@ export function DateTimeSelector({ dateFrom, setDateFrom, setDateTo, timeFrom, s
   return (
     <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
       <h3 className="font-bold text-blue-800 mb-2">שלב 2: בחירת תאריך וטווח שעות</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">תאריך</label>
           <input

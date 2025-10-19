@@ -12,6 +12,10 @@ import { SelectedLines } from './components/SelectedLines';
 import { FrequencyStats } from './components/FrequencyStats';
 import { RidesTable } from './components/RidesTable';
 import { MapView } from './components/MapView';
+import { clearAllCache } from './services/apiCache';
+import { TravelTimeStats } from './components/TravelTimeStats';
+
+
 
 // Fix for default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -239,7 +243,7 @@ const handleAddLine = async () => {
   };
 
   const handleRideClick = (rideWithStop) => {
-    setSelectedRide(rideWithStop.ride);
+    setSelectedRide(rideWithStop);
     setVehicleLocations(rideWithStop.allLocations);
     
     if (rideWithStop.closestPoint) {
@@ -258,82 +262,114 @@ const handleAddLine = async () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
-      <div className="bg-blue-600 text-white p-4 shadow-lg">
+      <div className="bg-blue-600 text-white p-4 shadow-lg flex justify-between items-center">
         <h1 className="text-2xl font-bold">ניתוח תדירות מצרפית - רב קווי</h1>
-      </div>
-
-      <div className="bg-white p-4 shadow-md space-y-4 overflow-y-auto max-h-[45vh]">
-        <StopSearch
-          stopCode={stopCode}
-          setStopCode={setStopCode}
-          onSearch={handleSearchStop}
-          loading={loading}
-          stopInfo={stopInfo}
-        />
-
-        <DateTimeSelector
-          dateFrom={dateFrom}
-          setDateFrom={setDateFrom}
-          setDateTo={setDateTo}
-          timeFrom={timeFrom}
-          setTimeFrom={setTimeFrom}
-          timeTo={timeTo}
-          setTimeTo={setTimeTo}
-        />
-
-        <LineSelector
-          currentLineSetup={currentLineSetup}
-          setCurrentLineSetup={setCurrentLineSetup}
-          agencies={agencies}
-          selectedLines={selectedLines}
-          loading={loading}
-          onSearchRoutes={handleSearchRoutes}
-          onLoadDirections={handleLoadDirections}
-          onAddLine={handleAddLine}
-        />
-
-        <SelectedLines
-          selectedLines={selectedLines}
-          onRemoveLine={handleRemoveLine}
-          onCalculate={handleCalculateFrequency}
-          onClearResults={handleClearResults}
-          loading={loading}
-          stopInfo={stopInfo}
-        />
-
-        <FrequencyStats
-          frequency={frequency}
-          totalRides={allRidesWithStops.length}
-        />
+        <button
+          onClick={() => {
+            if (confirm('האם למחוק את כל הנתונים השמורים במטמון?')) {
+              clearAllCache();
+              alert('המטמון נוקה בהצלחה');
+            }
+          }}
+          className="text-xs bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded"
+        >
+          נקה מטמון
+        </button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-96 bg-white border-l overflow-y-auto">
-          <div className="p-3 bg-gray-100 border-b font-semibold sticky top-0">
-            הגעות לתחנה ({allRidesWithStops.length})
+        {/* טור ימני - הגדרות */}
+        <div className="bg-white border-l overflow-y-auto flex flex-col" style={{ width: '30vw', minWidth: '320px' }}>
+          <div className="p-4 space-y-4">
+            <StopSearch
+              stopCode={stopCode}
+              setStopCode={setStopCode}
+              onSearch={handleSearchStop}
+              loading={loading}
+              stopInfo={stopInfo}
+            />
+
+            <DateTimeSelector
+              dateFrom={dateFrom}
+              setDateFrom={setDateFrom}
+              setDateTo={setDateTo}
+              timeFrom={timeFrom}
+              setTimeFrom={setTimeFrom}
+              timeTo={timeTo}
+              setTimeTo={setTimeTo}
+            />
+
+            <LineSelector
+              currentLineSetup={currentLineSetup}
+              setCurrentLineSetup={setCurrentLineSetup}
+              agencies={agencies}
+              selectedLines={selectedLines}
+              loading={loading}
+              onSearchRoutes={handleSearchRoutes}
+              onLoadDirections={handleLoadDirections}
+              onAddLine={handleAddLine}
+            />
+
+            <SelectedLines
+              selectedLines={selectedLines}
+              onRemoveLine={handleRemoveLine}
+              onCalculate={handleCalculateFrequency}
+              onClearResults={handleClearResults}
+              loading={loading}
+              stopInfo={stopInfo}
+            />
           </div>
-          <RidesTable
-            ridesWithStops={allRidesWithStops}
-            selectedRide={selectedRide}
-            onRideClick={handleRideClick}
-            selectedLines={selectedLines}
-            stopInfo={stopInfo}
-            dateFrom={dateFrom}
-            timeFrom={timeFrom}
-            timeTo={timeTo}
-          />
         </div>
 
-        <MapView
-          mapCenter={mapCenter}
-          mapZoom={mapZoom}
-          stopInfo={stopInfo}
-          vehicleLocations={vehicleLocations}
-          loading={loading}
-          selectedRide={selectedRide}
-          selectedLines={selectedLines}
-          lineStopsData={lineStopsData}
-        />
+        {/* טור אמצעי - טבלאות */}
+        <div className="w-105 bg-white border-l overflow-y-auto flex flex-col">
+          <div className="p-3 bg-gray-100 border-b font-semibold">
+            הגעות לתחנה ({allRidesWithStops.length})
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <RidesTable
+              ridesWithStops={allRidesWithStops}
+              selectedRide={selectedRide}
+              onRideClick={handleRideClick}
+              selectedLines={selectedLines}
+              stopInfo={stopInfo}
+              dateFrom={dateFrom}
+              timeFrom={timeFrom}
+              timeTo={timeTo}
+            />
+          </div>
+          <div className="border-t bg-white">
+            <div className="p-3 bg-gray-100 border-b font-semibold">
+              סטטיסטיקות
+            </div>
+            <div className="p-3">
+              <FrequencyStats
+                frequency={frequency}
+                totalRides={allRidesWithStops.length}
+              />
+            </div>
+            <div className="p-3 border-t">
+              <TravelTimeStats
+                ridesWithStops={allRidesWithStops}
+                selectedLines={selectedLines}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* טור שמאלי - מפה (40% מרוחב המסך) */}
+        <div className="flex-1">
+          <MapView
+            mapCenter={mapCenter}
+            mapZoom={mapZoom}
+            stopInfo={stopInfo}
+            vehicleLocations={vehicleLocations}
+            loading={loading}
+            selectedRide={selectedRide}
+            selectedLines={selectedLines}
+            lineStopsData={lineStopsData}
+          />
+        </div>
       </div>
     </div>
   );
