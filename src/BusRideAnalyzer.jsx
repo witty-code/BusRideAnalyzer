@@ -322,7 +322,7 @@ const handleAddLine = async () => {
         </div>
 
         {/* טור אמצעי - טבלאות */}
-        <div className="w-105 bg-white border-l overflow-y-auto flex flex-col">
+        <div className="w-110 bg-white border-l overflow-y-auto flex flex-col">
           <div className="p-3 bg-gray-100 border-b font-semibold">
             הגעות לתחנה ({allRidesWithStops.length})
           </div>
