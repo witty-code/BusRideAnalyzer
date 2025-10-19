@@ -148,8 +148,8 @@ const handleAddLine = async () => {
     return;
   }
   
-  if (selectedLines.length >= 5) {
-    alert('ניתן לבחור עד 5 קווים');
+  if (selectedLines.length >= 7) {
+    alert('ניתן לבחור עד 7 קווים');
     return;
   }
 
