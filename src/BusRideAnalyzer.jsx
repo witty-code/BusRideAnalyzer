@@ -1,5 +1,5 @@
 // === App.jsx (Main Component) ===
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LINE_COLORS } from './utils/constants';
@@ -142,76 +142,76 @@ export default function BusRideAnalyzer() {
   };
 
   
-const handleAddLine = async () => {
-  if (!currentLineSetup.selectedRouteMkt || !currentLineSetup.selectedDirection) {
-    alert('נא לבחור מסלול וכיוון');
-    return;
-  }
-  
-  if (selectedLines.length >= 7) {
-    alert('ניתן לבחור עד 7 קווים');
-    return;
-  }
+  const handleAddLine = async () => {
+    if (!currentLineSetup.selectedRouteMkt || !currentLineSetup.selectedDirection) {
+      alert('נא לבחור מסלול וכיוון');
+      return;
+    }
+    
+    if (selectedLines.length >= 7) {
+      alert('ניתן לבחור עד 7 קווים');
+      return;
+    }
 
-  const selectedRouteData = currentLineSetup.directionsData.find(
-    r => r.route_direction === currentLineSetup.selectedDirection
-  );
-  
-  const agencyName = agencies.find(a => a.operator_ref === selectedRouteData.operator_ref)?.agency_name || selectedRouteData.operator;
-  const routeInfo = currentLineSetup.availableRoutes.find(r => r.route_mkt === currentLineSetup.selectedRouteMkt);
-  
-  const parsed = parseRouteName(selectedRouteData.route_long_name);
-  const directionLabel = parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${currentLineSetup.selectedDirection}`;
-  
-  const newLine = {
-    id: `${agencyName}-${currentLineSetup.selectedRouteMkt}-${currentLineSetup.selectedDirection}`,
-    operator: currentLineSetup.operator,
-    operatorName: agencyName,
-    routeShortName: routeInfo.route_short_name,
-    routeMkt: currentLineSetup.selectedRouteMkt,
-    direction: currentLineSetup.selectedDirection,
-    directionLabel: directionLabel,
-    directionsData: currentLineSetup.directionsData,
-    color: LINE_COLORS[selectedLines.length]
-  };
-  
-  // שליפת תחנות לקו החדש לפני הוספת הקו
-  setLoading(true);
-  try {
-    const stops = await api.fetchStopsForLine(
-      selectedRouteData.operator_ref,
-      currentLineSetup.selectedRouteMkt,
-      currentLineSetup.selectedDirection,
-      dateFrom,
-      dateTo
+    const selectedRouteData = currentLineSetup.directionsData.find(
+      r => r.route_direction === currentLineSetup.selectedDirection
     );
     
-    // עדכן את lineStopsData
-    setLineStopsData(prev => ({
-      ...prev,
-      [newLine.id]: stops
-    }));
+    const agencyName = agencies.find(a => a.operator_ref === selectedRouteData.operator_ref)?.agency_name || selectedRouteData.operator;
+    const routeInfo = currentLineSetup.availableRoutes.find(r => r.route_mkt === currentLineSetup.selectedRouteMkt);
     
-    // רק אחרי שהתחנות נשלפו בהצלחה - הוסף את הקו
-    setSelectedLines(prev => [...prev, newLine]);
+    const parsed = parseRouteName(selectedRouteData.route_long_name);
+    const directionLabel = parsed ? `${parsed.destinationStop}, ${parsed.destinationCity}` : `כיוון ${currentLineSetup.selectedDirection}`;
     
-    // נקה את הטופס
-    setCurrentLineSetup({
-      operator: '',
-      routeShortName: '',
-      availableRoutes: [],
-      selectedRouteMkt: '',
-      directionsData: [],
-      selectedDirection: ''
-    });
+    const newLine = {
+      id: `${agencyName}-${currentLineSetup.selectedRouteMkt}-${currentLineSetup.selectedDirection}`,
+      operator: currentLineSetup.operator,
+      operatorName: agencyName,
+      routeShortName: routeInfo.route_short_name,
+      routeMkt: currentLineSetup.selectedRouteMkt,
+      direction: currentLineSetup.selectedDirection,
+      directionLabel: directionLabel,
+      directionsData: currentLineSetup.directionsData,
+      color: LINE_COLORS[selectedLines.length]
+    };
     
-  } catch (err) {
-    console.error('Failed to load stops for line:', err);
-    alert('שגיאה בטעינת תחנות הקו');
-  } finally {
-    setLoading(false);
-  }
-};
+    // שליפת תחנות לקו החדש לפני הוספת הקו
+    setLoading(true);
+    try {
+      const stops = await api.fetchStopsForLine(
+        selectedRouteData.operator_ref,
+        currentLineSetup.selectedRouteMkt,
+        currentLineSetup.selectedDirection,
+        dateFrom,
+        dateTo
+      );
+      
+      // עדכן את lineStopsData
+      setLineStopsData(prev => ({
+        ...prev,
+        [newLine.id]: stops
+      }));
+      
+      // רק אחרי שהתחנות נשלפו בהצלחה - הוסף את הקו
+      setSelectedLines(prev => [...prev, newLine]);
+      
+      // נקה את הטופס
+      setCurrentLineSetup({
+        operator: '',
+        routeShortName: '',
+        availableRoutes: [],
+        selectedRouteMkt: '',
+        directionsData: [],
+        selectedDirection: ''
+      });
+      
+    } catch (err) {
+      console.error('Failed to load stops for line:', err);
+      alert('שגיאה בטעינת תחנות הקו');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRemoveLine = (lineId) => {
     setSelectedLines(prev => prev.filter(line => line.id !== lineId));
@@ -259,6 +259,61 @@ const handleAddLine = async () => {
   };
 
   const frequency = calculateFrequency(allRidesWithStops);
+
+  const clamp = (v) => Math.min(40, Math.max(60, v));
+  const [midSplitPct, setMidSplitPct] = useState(() => {
+    const v = Number(localStorage.getItem('midSplitPct'));
+    return clamp(Number.isFinite(v) ? v : 40);
+  });
+
+  const midColRef = useRef(null);
+  const draggingRef = useRef(false);
+
+  useEffect(() => localStorage.setItem('midSplitPct', String(clamp(midSplitPct))), [midSplitPct]);
+
+  const startDrag = (e) => {
+    draggingRef.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const stopDrag = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  };
+
+  const onDrag = (clientY) => {
+    if (!draggingRef.current || !midColRef.current) return;
+    const rect = midColRef.current.getBoundingClientRect();
+    const y = Math.min(Math.max(clientY, rect.top), rect.bottom);
+    const pct = ((y - rect.top) / rect.height) * 100;
+    // מגבלות גובה סבירות: 25%–85% לחלק העליון
+    const clamped = Math.min(85, Math.max(25, pct));
+    setMidSplitPct(clamped);
+  };
+
+  // מאזינים גלובליים לעכבר/מגע
+  useEffect(() => {
+    const onMouseMove = (e) => onDrag(e.clientY);
+    const onTouchMove = (e) => {
+      if (e.touches && e.touches[0]) onDrag(e.touches[0].clientY);
+    };
+    const onUp = stopDrag;
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
@@ -322,37 +377,60 @@ const handleAddLine = async () => {
         </div>
 
         {/* טור אמצעי - טבלאות */}
-        <div className="w-110 bg-white border-l overflow-y-auto flex flex-col">
-          <div className="p-3 bg-gray-100 border-b font-semibold">
-            הגעות לתחנה ({allRidesWithStops.length})
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <RidesTable
-              ridesWithStops={allRidesWithStops}
-              selectedRide={selectedRide}
-              onRideClick={handleRideClick}
-              selectedLines={selectedLines}
-              stopInfo={stopInfo}
-              dateFrom={dateFrom}
-              timeFrom={timeFrom}
-              timeTo={timeTo}
-            />
-          </div>
-          <div className="border-t bg-white">
+        <div
+          ref={midColRef}
+          className="w-110 bg-white border-l overflow-hidden"
+          style={{
+            display: 'grid',
+            gridTemplateRows: `${midSplitPct}% 8px ${100 - midSplitPct}%`,
+          }}
+        >
+          <div className="min-h-[160px] overflow-hidden flex flex-col">
             <div className="p-3 bg-gray-100 border-b font-semibold">
-              סטטיסטיקות
+              הגעות לתחנה ({allRidesWithStops.length})
             </div>
-            <div className="p-3">
-              <FrequencyStats
-                frequency={frequency}
-                totalRides={allRidesWithStops.length}
-              />
-            </div>
-            <div className="p-3 border-t">
-              <TravelTimeStats
+            <div className="flex-1 overflow-y-auto">
+              <RidesTable
                 ridesWithStops={allRidesWithStops}
+                selectedRide={selectedRide}
+                onRideClick={handleRideClick}
                 selectedLines={selectedLines}
+                stopInfo={stopInfo}
+                dateFrom={dateFrom}
+                timeFrom={timeFrom}
+                timeTo={timeTo}
               />
+            </div>
+          </div>
+          
+          {/* הידית לגרירה */}
+          <div
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
+            className="h-2 cursor-row-resize bg-gray-200 hover:bg-gray-300 relative shrink-0"
+            title="גרור לשינוי יחס הגבהים"
+          >
+            {/* קישוט קטן לאחיזה */}
+            <div className="absolute inset-x-4 top-1 bottom-1 rounded bg-gray-300" />
+          </div>
+          
+          <div className="overflow-auto bg-white">
+            <div className="border-t bg-white">
+              <div className="p-3 bg-gray-100 border-b font-semibold">
+                סטטיסטיקות
+              </div>
+              <div className="p-3">
+                <FrequencyStats
+                  frequency={frequency}
+                  totalRides={allRidesWithStops.length}
+                />
+              </div>
+              <div className="p-3 border-t">
+                <TravelTimeStats
+                  ridesWithStops={allRidesWithStops}
+                  selectedLines={selectedLines}
+                />
+              </div>
             </div>
           </div>
         </div>
